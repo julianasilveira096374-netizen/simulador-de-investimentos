@@ -1,0 +1,22 @@
+# Ambiente virtual Python
+venv/
+.venv/
+env/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Estado salvo do simulador (gerado em runtime)
+data.json
+
+# Arquivos de IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini

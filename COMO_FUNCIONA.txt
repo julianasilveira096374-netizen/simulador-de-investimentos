@@ -1,0 +1,583 @@
+================================================================================
+  INVESTSIM — COMO TUDO FUNCIONA (documentação detalhada)
+================================================================================
+
+Este arquivo explica, em detalhes e em português, COMO o simulador foi
+construído e COMO cada parte funciona por dentro. É um guia para você entender,
+manter e expandir o projeto. Tudo aqui é fictício e educacional.
+
+Índice:
+  1.  Visão geral da arquitetura
+  2.  Fluxo de uma interação (do clique ao resultado)
+  3.  Estrutura de pastas e arquivos
+  4.  Backend — app.py (servidor Flask)
+  5.  Backend — simulator.py (o motor / engine)
+  6.  O sistema de aleatoriedade (como os preços mudam)
+  7.  Sistema de compra, venda e preço médio
+  8.  Persistência (salvar/carregar) e reset
+  9.  Frontend — index.html (estrutura da tela)
+  10. Frontend — style.css (visual e responsividade)
+  11. Frontend — app.js (lógica da interface)
+  12. Frontend — chart.js (gráficos em canvas)
+  13. Frontend — sounds.js (sons sintetizados)
+  14. As rotas da API em detalhe
+  15. Glossário de termos
+  16. Como expandir o projeto
+  17. Solução de problemas (FAQ)
+
+
+================================================================================
+  1. VISÃO GERAL DA ARQUITETURA
+================================================================================
+
+O projeto segue o modelo CLIENTE  <->  SERVIDOR:
+
+   NAVEGADOR (cliente)                         PYTHON (servidor)
+   ┌───────────────────────┐                  ┌───────────────────────┐
+   │ HTML  (estrutura)      │   requisições    │ app.py    (Flask)     │
+   │ CSS   (aparência)      │  ───────────────>│   rotas /api/...      │
+   │ JS    (comportamento)  │   <───────────── │ simulator.py (lógica) │
+   │  - app.js              │   respostas JSON │ data.json (estado)    │
+   │  - chart.js            │                  └───────────────────────┘
+   │  - sounds.js           │
+   └───────────────────────┘
+
+Pontos-chave do desenho:
+
+  * O SERVIDOR é a "fonte da verdade". Todo o estado do jogo (saldo, cotas,
+    carteira, histórico) vive no Python. O navegador NUNCA calcula preços;
+    ele apenas mostra o que o servidor mandar.
+
+  * A comunicação é feita 100% via JSON. O frontend faz "fetch" para rotas
+    como /api/advance e recebe de volta o estado completo atualizado.
+
+  * A lógica de negócio (regras do simulador) fica SEPARADA do servidor web.
+    O Flask (app.py) só cuida de "receber pedido -> chamar o motor -> devolver
+    resposta". As regras ficam em simulator.py. Isso deixa o código limpo e
+    fácil de testar/expandir.
+
+  * Não há banco de dados. O estado é salvo em um arquivo simples: data.json.
+
+
+================================================================================
+  2. FLUXO DE UMA INTERAÇÃO (do clique ao resultado)
+================================================================================
+
+Exemplo: o usuário clica em "+1 Semana".
+
+  1. (app.js) O clique no botão chama advance(7).
+  2. (app.js) advance() faz: fetch POST /api/advance com corpo {"days": 7}.
+  3. (app.py) A rota api_advance() recebe o pedido e chama sim.advance(7).
+  4. (simulator.py) advance() simula 7 dias, um por vez:
+        - sorteia eventos globais (crise/boom)
+        - para cada cota, calcula a nova variação de preço (aleatoriedade)
+        - registra o novo patrimônio do dia no histórico
+  5. (app.py) save_state() grava o novo estado em data.json.
+  6. (app.py) devolve sim.to_dict() (estado completo) como JSON.
+  7. (app.js) recebe o JSON, guarda em STATE e chama renderAll().
+  8. (app.js) renderAll() redesenha mercado, carteira, gráficos, ranking, etc.
+  9. (app.js) se houve crise/boom, mostra o banner e toca o som correspondente.
+
+O mesmo padrão vale para comprar, vender e resetar: o frontend envia o pedido,
+o servidor altera o estado, salva e devolve o estado novo; o frontend redesenha.
+
+
+================================================================================
+  3. ESTRUTURA DE PASTAS E ARQUIVOS
+================================================================================
+
+  simulador-de-investimentos/
+  │
+  ├── app.py                # Servidor Flask: rotas + persistência
+  ├── simulator.py          # Motor do simulador (toda a lógica de negócio)
+  ├── requirements.txt      # Dependências (apenas Flask)
+  ├── data.json             # Estado salvo (CRIADO automaticamente ao rodar)
+  ├── README.md             # Instruções de instalação e uso
+  ├── COMO_FUNCIONA.txt     # Este arquivo
+  ├── .gitignore            # Arquivos ignorados pelo git
+  ├── venv/                 # Ambiente virtual Python (não versionado)
+  │
+  ├── templates/
+  │   └── index.html        # A única página (HTML servido pelo Flask)
+  │
+  └── static/
+      ├── css/
+      │   └── style.css     # Tema escuro, layout, responsividade, animações
+      ├── js/
+      │   ├── app.js        # Lógica do frontend (orquestra tudo)
+      │   ├── chart.js      # Mini biblioteca de gráficos em <canvas>
+      │   └── sounds.js     # Sons sintetizados (Web Audio API)
+      └── img/              # Imagens (opcional; hoje usamos emojis)
+
+Por que "templates" e "static"?
+  O Flask, por padrão, procura páginas HTML na pasta "templates" (para usar o
+  render_template) e arquivos públicos (CSS/JS/imagens) na pasta "static".
+  Seguir essa convenção faz tudo "simplesmente funcionar".
+
+
+================================================================================
+  4. BACKEND — app.py (SERVIDOR FLASK)
+================================================================================
+
+Responsabilidade: ser a "ponte" entre o navegador e o motor do simulador.
+
+Partes principais:
+
+  * SAVE_FILE -> caminho do arquivo data.json (ao lado do app.py).
+
+  * sim -> variável global que guarda a instância do Simulator (o estado do
+    jogo) enquanto o servidor está ligado.
+
+  * load_state() -> ao iniciar, tenta ler data.json. Se existir e for válido,
+    recria o simulador a partir dele (continua de onde parou). Se não existir
+    ou estiver corrompido, cria um simulador novo (estado inicial).
+
+  * save_state() -> grava o estado atual em data.json (em formato JSON legível).
+
+  * Rotas de página:
+        GET /            -> render_template("index.html")  (mostra a tela)
+
+  * Rotas de API (todas devolvem JSON):
+        GET  /api/state      -> estado completo atual
+        POST /api/advance    -> avança o tempo
+        POST /api/buy        -> compra cotas
+        POST /api/sell       -> vende cotas
+        POST /api/sell_all   -> vende toda a posição de um ativo
+        POST /api/reset      -> reinicia o jogo
+
+  Cada rota de ação chama o método correspondente do motor, salva o estado
+  (se a operação deu certo) e devolve o estado atualizado para o frontend.
+
+  * load_state() é chamado quando o módulo é importado (no fim do arquivo),
+    para que funcione tanto com "python app.py" quanto com "flask run".
+
+  * Bloco final (if __name__ == "__main__"):
+        app.run(host="127.0.0.1", port=5000, debug=True)
+    Sobe o servidor local na porta 5000. debug=True recarrega o servidor
+    automaticamente quando você edita o código (ótimo para desenvolver).
+
+
+================================================================================
+  5. BACKEND — simulator.py (O MOTOR / ENGINE)
+================================================================================
+
+Aqui mora TODA a lógica do jogo, dentro da classe Simulator. Não há nada de
+Flask aqui — é Python puro, o que facilita testar e reaproveitar.
+
+Constantes no topo:
+
+  * DEFAULT_ASSETS -> lista das cotas iniciais. Cada cota é um dicionário com:
+        id          -> identificador único (ex.: "cripto")
+        name        -> nome exibido (ex.: "CriptoLuna")
+        desc        -> descrição (usada no tooltip)
+        price       -> preço atual
+        volatility  -> intensidade da oscilação diária (0.01 = calmo, 0.18 = caos)
+        trend       -> tendência média diária (drift); positivo sobe, negativo cai
+        up_chance   -> probabilidade de receber um empurrão para cima
+        down_chance -> probabilidade de receber um empurrão para baixo
+        risk        -> rótulo de risco para a interface (Baixo/Médio/Alto)
+
+  * INITIAL_BALANCE -> saldo fictício inicial (R$ 10.000).
+
+Atributos de estado (criados em reset()):
+
+  * day                -> contador de dias simulados
+  * balance            -> dinheiro em caixa (disponível para comprar)
+  * assets             -> cópia das cotas, cada uma com "history" (lista de preços)
+  * holdings           -> carteira do usuário, no formato:
+                            { asset_id: { "shares": <qtd>, "avg_price": <preço médio> } }
+  * transactions       -> histórico das últimas 100 compras/vendas
+  * net_worth_history  -> patrimônio total registrado a cada dia (para o gráfico)
+  * last_event         -> último evento GLOBAL (crise/boom) do avanço atual
+  * events_log         -> linha do tempo dos últimos 30 eventos do mercado
+
+Métodos importantes:
+
+  * get_asset(id)      -> acha uma cota pelo id.
+  * net_worth()        -> patrimônio = caixa + (cotas x preço atual de cada uma).
+  * advance(days)      -> avança o tempo (ver seção 6).
+  * buy / sell / sell_all -> negociação (ver seção 7).
+  * portfolio_view()   -> monta a carteira detalhada (lucro, % , preço médio...).
+  * ranking()          -> ordena as cotas pela valorização desde o início.
+  * stats()            -> calcula patrimônio, investido, lucro, ROI, pico, etc.
+  * to_dict()          -> junta TUDO em um dicionário para virar o JSON enviado
+                          ao frontend. É o "pacote" que a interface recebe.
+
+
+================================================================================
+  6. O SISTEMA DE ALEATORIEDADE (COMO OS PREÇOS MUDAM)
+================================================================================
+
+A cada DIA simulado, o motor faz duas coisas:
+
+(A) EVENTO GLOBAL — método _roll_global_event()
+    Sorteia um número aleatório. Com probabilidade pequena:
+      * ~1,2% ao dia  -> CRISE: aplica uma queda forte (-8% a -20%) em todos.
+      * mais ~1,2%    -> BOOM:  aplica uma alta forte (+7% a +18%) em todos.
+      * caso contrário-> nada (dia normal).
+    O resultado é um "choque" que será somado à variação de cada cota.
+
+(B) VARIAÇÃO POR COTA — método _step_asset()
+    Para cada cota, a variação diária (em %) é a SOMA de vários componentes:
+
+      1. Tendência (trend): um pequeno empurrão constante na direção do perfil
+         do ativo. Ex.: tesouro tem trend levemente positivo (cresce devagar).
+
+      2. Choque aleatório gaussiano: random.gauss(0, volatility).
+         Usamos distribuição NORMAL (sino) de propósito: a maioria dos dias é
+         calma (perto de zero), mas dias extremos acontecem de vez em quando.
+         Quanto maior a volatility, mais largo o sino -> oscilações maiores.
+
+      3. Viés direcional (up_chance / down_chance): às vezes o ativo recebe um
+         empurrão extra para cima ou para baixo, conforme essas probabilidades.
+
+      4. Eventos individuais raros: com chance proporcional à volatilidade,
+         a cota pode ter uma "alta repentina" (+10% a +45%) ou uma "queda
+         brusca" (-10% a -45%). Por isso cripto e startup "explodem" ou
+         "quebram" muito mais do que o tesouro.
+
+      5. Choque global: se houve crise/boom no dia, ele é somado aqui — e pesa
+         MAIS nos ativos arriscados (multiplicado por 0.6 + volatility*3).
+
+    No fim:
+        novo_preço = preço_atual * (1 + variação_total)
+        novo_preço = no mínimo R$ 0,50 (o preço nunca chega a zero)
+    O novo preço entra no "history" da cota (limitado aos últimos 400 pontos).
+
+Resumo do "porquê":
+  - Ativos SEGUROS (tesouro, banco): volatility baixa + trend positivo + poucos
+    eventos => sobem devagar e raramente despencam.
+  - Ativos ARRISCADOS (cripto, startup): volatility alta + muitos eventos =>
+    podem multiplicar ou virar pó. Alto risco, alto potencial.
+
+  Tudo é pseudo-aleatório (módulo random do Python). Para reproduzir resultados
+  iguais em testes, daria para fixar uma "seed" (não fazemos isso de propósito,
+  para o jogo ser sempre diferente).
+
+
+================================================================================
+  7. SISTEMA DE COMPRA, VENDA E PREÇO MÉDIO
+================================================================================
+
+COMPRAR — buy(asset_id, shares):
+  1. Valida a cota e a quantidade.
+  2. custo = shares * preço_atual. Se custo > saldo -> erro "Saldo insuficiente".
+  3. Debita o caixa (balance -= custo).
+  4. Atualiza a posição na carteira e recalcula o PREÇO MÉDIO de compra:
+
+        novo_médio = (qtd_antiga*médio_antigo + qtd_nova*preço_atual) / qtd_total
+
+     O preço médio é fundamental para calcular lucro/prejuízo corretamente
+     quando você compra a mesma cota em momentos (preços) diferentes.
+  5. Registra a transação no histórico.
+
+VENDER — sell(asset_id, shares):
+  1. Verifica se você possui o ativo.
+  2. Não deixa vender mais do que tem (corta no máximo disponível).
+  3. receita = shares * preço_atual; credita o caixa (balance += receita).
+  4. Reduz a quantidade. Se zerar, remove o ativo da carteira.
+  5. Registra a transação.
+
+VENDER TUDO — sell_all(asset_id):
+  Apenas chama sell() com a quantidade total da posição (encerra o investimento).
+
+LUCRO / PREJUÍZO (calculado em portfolio_view()):
+  Para cada posição:
+      valor_de_mercado = shares * preço_atual
+      investido        = shares * preço_médio
+      lucro            = valor_de_mercado - investido
+      lucro_%          = lucro / investido * 100
+  O patrimônio total (net_worth) = caixa + soma de todos os valores de mercado.
+  O ROI (em stats) = (patrimônio_atual - saldo_inicial) / saldo_inicial * 100.
+
+
+================================================================================
+  8. PERSISTÊNCIA (SALVAR/CARREGAR) E RESET
+================================================================================
+
+  * O estado é salvo no arquivo data.json após cada ação relevante (avançar,
+    comprar, vender, resetar). É JSON puro, sem banco de dados — simples e
+    legível; você pode até abrir o arquivo e inspecionar.
+
+  * Ao iniciar o servidor, load_state() lê o data.json e CONTINUA o jogo de
+    onde parou. Se o arquivo não existir (primeira vez) ou estiver corrompido,
+    começa um jogo novo.
+
+  * RESET: a rota /api/reset chama sim.reset() (volta ao estado inicial) e
+    sobrescreve o data.json. No frontend há um botão "Reset" com confirmação.
+
+  * Preferência de SOM: guardada no navegador via localStorage (chave
+    "investsim_sound"), separada do estado do jogo. Isso é uma preferência do
+    usuário, não parte da simulação.
+
+
+================================================================================
+  9. FRONTEND — index.html (ESTRUTURA DA TELA)
+================================================================================
+
+É a única página. Define a "esqueleto" da interface (o conteúdo dinâmico é
+preenchido pelo JavaScript). Principais regiões:
+
+  * <header class="topbar">  -> logo + resumo (Patrimônio, Saldo, Lucro, Dia)
+                                + botões de Som e Reset.
+  * #event-banner            -> faixa que aparece em crises/booms.
+  * <section class="timebar">-> controles de tempo: +1 Dia, +1 Semana, +1 Mês,
+                                botão Auto e slider de Velocidade.
+  * <main class="grid">      -> 3 colunas:
+        - Mercado    (#market-list)    : lista de cotas (clique para negociar)
+        - Evolução   (#chart)          : gráfico + abas (Patrimônio / Cotas)
+        - Carteira   (#portfolio-list) : suas posições + Estatísticas + Ranking
+  * <section class="grid-bottom"> -> Histórico de Transações e Eventos.
+  * #trade-modal             -> janela (modal) de compra/venda que abre ao
+                                clicar numa cota.
+  * No fim, carrega os scripts NA ORDEM: chart.js, sounds.js, app.js.
+    (app.js depende dos outros dois, por isso vem por último.)
+
+  Os caminhos de CSS/JS usam url_for('static', ...) para o Flask montar a URL
+  correta dos arquivos da pasta static.
+
+
+================================================================================
+  10. FRONTEND — style.css (VISUAL E RESPONSIVIDADE)
+================================================================================
+
+  * Variáveis CSS (:root) definem a paleta (cores, bordas, sombras, raio dos
+    cantos). Mudar o tema inteiro é só alterar essas variáveis no topo.
+
+  * Tema escuro estilo "plataforma de trading": fundo escuro com um leve
+    gradiente, cartões (cards) com borda sutil e sombra.
+
+  * Layout com CSS Grid:
+        .grid        -> 3 colunas no desktop
+        .grid-bottom -> 2 colunas (históricos)
+    e Flexbox para as listas internas.
+
+  * Cores semânticas: verde (--green) para alta/lucro, vermelho (--red) para
+    queda/prejuízo, amarelo (--yellow) para risco médio.
+
+  * Tooltip: a regra .asset[data-tip]:hover::after mostra a descrição do
+    investimento ao passar o mouse, usando o atributo data-tip preenchido pelo JS.
+
+  * Animações suaves:
+        flash-up / flash-down -> piscar verde/vermelho quando um valor muda
+        slideDown, fade        -> entrada do banner e do modal
+        transições nos botões  -> leve "apertar" ao clicar
+
+  * Responsividade (@media):
+        <= 1080px : vira 2 colunas, gráfico no topo
+        <=  720px : vira 1 coluna (celular), ajustes de fonte
+
+
+================================================================================
+  11. FRONTEND — app.js (LÓGICA DA INTERFACE)
+================================================================================
+
+É o "cérebro" do navegador. Organização:
+
+  * Estado local:
+        STATE     -> última "foto" do estado recebida do servidor
+        SELECTED  -> cota aberta no modal
+        chartMode -> "networth" ou "assets" (qual gráfico mostrar)
+        autoTimer -> referência do loop do modo automático
+        soundOn   -> preferência de som (lida do localStorage)
+
+  * Comunicação:
+        api(path, body) -> wrapper sobre fetch; faz GET (sem body) ou POST
+                           (com JSON) e retorna o JSON da resposta.
+        refresh()       -> busca /api/state e redesenha tudo.
+
+  * Renderização (uma função por área):
+        renderTopbar, renderMarket, renderPortfolio, renderStats,
+        renderRanking, renderTransactions, renderEvents, renderChart.
+    renderAll() chama todas. Toda mudança de estado dispara renderAll().
+
+  * setFlash(): guarda o valor anterior de cada número do topo e aplica a
+    animação verde/vermelho quando ele muda (sobe/desce).
+
+  * Modal de negociação:
+        openModal(id)   -> abre e preenche os dados da cota
+        updateModal()   -> atualiza preço, risco, quanto você tem, preço médio
+        updateCost()    -> mostra o custo estimado conforme a quantidade digitada
+        doTrade(action) -> chama /api/buy, /api/sell ou /api/sell_all e, ao
+                           voltar, atualiza STATE e redesenha (+ som).
+
+  * Controle de tempo:
+        advance(days)   -> chama /api/advance e, se houver evento global,
+                           mostra o banner.
+        toggleAuto()    -> liga/desliga o modo automático (setInterval).
+        autoInterval()  -> traduz o slider (1..10) em intervalo de tempo
+                           (1..10 -> de 1550ms até 200ms, mais rápido à direita).
+
+  * Sons: a função play(type) apenas repassa para o módulo Sounds (sounds.js).
+
+  * bindEvents(): conecta TODOS os cliques/inputs aos comportamentos (botões de
+    tempo, auto, slider, reset, som, abas do gráfico, modal, tecla ESC, resize).
+
+  * Inicialização (DOMContentLoaded): aplica a preferência de som, liga os
+    eventos e faz o primeiro refresh() para carregar o estado.
+
+
+================================================================================
+  12. FRONTEND — chart.js (GRÁFICOS EM CANVAS)
+================================================================================
+
+Mini biblioteca de gráficos feita do zero em <canvas>, sem bibliotecas externas
+(como Chart.js). Mantida simples para ser fácil de entender.
+
+  * ChartLib.draw(canvas, series, opts):
+      - Ajusta a resolução para telas "retina" (usa devicePixelRatio) -> nitidez.
+      - Calcula mínimo/máximo de todas as séries para escalar o eixo Y.
+      - Desenha a grade horizontal e os rótulos de valor.
+      - Desenha cada série como uma linha; com opts.fill e uma única série
+        (patrimônio), também preenche a área abaixo com um gradiente.
+      - Retorna a legenda (rótulo + cor) para o app montar embaixo.
+
+  * ChartLib.sparkline(canvas, data):
+      - Desenha uma linha minúscula (sem eixos) usada dentro de cada cota no
+        mercado. Fica verde se terminou acima do começo, vermelho se abaixo.
+
+  * COLORS: paleta usada para diferenciar várias cotas no gráfico "Cotas".
+
+  As duas abas do gráfico:
+      "Patrimônio" -> uma série (net_worth_history) com área preenchida.
+      "Cotas"      -> várias séries (o history de cada cota, últimos 120 pontos).
+
+
+================================================================================
+  13. FRONTEND — sounds.js (SONS SINTETIZADOS)
+================================================================================
+
+Todos os sons são GERADOS na hora pela Web Audio API — não há arquivos .mp3/.wav.
+Isso mantém o projeto leve e sem downloads.
+
+  * ensure(): cria o AudioContext só no primeiro uso e faz ctx.resume().
+    (Navegadores bloqueiam áudio até a 1ª interação do usuário — por isso o
+     primeiro som só sai após o primeiro clique na página.)
+
+  * note(freq, start, dur, type, vol): toca uma nota (oscilador) com um envelope
+    de volume (ataque rápido + decaimento), o que soa mais "musical" que um bipe.
+
+  * sweep(f1, f2, ...): varre a frequência de f1 a f2 (usado em boom/crash).
+
+  * FX: a biblioteca de efeitos. Cada um monta uma pequena melodia:
+        buy   -> dois tons subindo        sell  -> dois tons descendo
+        tick  -> clique curto             error -> zumbido grave
+        boom  -> arpejo ascendente + sweep
+        crash -> varredura grave/sombria  click -> clique de interface
+
+  * play(name): toca um efeito (se o som estiver ligado).
+  * setEnabled(on)/isEnabled(): liga/desliga (controlado pelo botão 🔊/🔇).
+
+
+================================================================================
+  14. AS ROTAS DA API EM DETALHE
+================================================================================
+
+  GET /
+      Devolve a página index.html.
+
+  GET /api/state
+      Devolve o estado completo: day, balance, assets (com history), holdings,
+      transactions, net_worth_history, portfolio, ranking, stats, events_log,
+      last_event. É o que a interface usa para desenhar tudo.
+
+  POST /api/advance        corpo: { "days": 1 }    (1=dia, 7=semana, 30=mês)
+      Avança o tempo, salva e devolve o estado novo (com last_event se houve
+      crise/boom).
+
+  POST /api/buy            corpo: { "asset_id": "cripto", "shares": 10 }
+      Compra. Resposta: { "ok": true|false, "error": "...", "state": {...} }.
+
+  POST /api/sell           corpo: { "asset_id": "cripto", "shares": 5 }
+      Vende parcial. Mesma forma de resposta do buy.
+
+  POST /api/sell_all       corpo: { "asset_id": "cripto" }
+      Vende toda a posição. Mesma forma de resposta.
+
+  POST /api/reset          corpo: {} (vazio)
+      Reinicia o jogo e devolve o estado inicial.
+
+  Convenção: as rotas de ação sempre devolvem o estado atualizado junto, para
+  o frontend não precisar fazer um segundo pedido só para redesenhar.
+
+
+================================================================================
+  15. GLOSSÁRIO DE TERMOS
+================================================================================
+
+  Cota / Ativo     : um investimento negociável (ex.: TechVerso, CriptoLuna).
+  Carteira (holdings): o conjunto de cotas que VOCÊ possui.
+  Saldo / Caixa    : dinheiro fictício disponível para comprar.
+  Patrimônio (net worth): caixa + valor de mercado de todas as suas cotas.
+  Preço médio      : média ponderada do que você pagou por uma cota.
+  Lucro/Prejuízo   : valor de mercado atual - valor investido.
+  ROI              : retorno percentual sobre o saldo inicial.
+  Volatilidade     : o quanto o preço de uma cota oscila por dia.
+  Tendência (trend): viés constante de subida/queda de uma cota.
+  Evento global    : crise ou boom que afeta todas as cotas de uma vez.
+  Sparkline        : mini gráfico de linha, sem eixos, dentro de cada cota.
+
+
+================================================================================
+  16. COMO EXPANDIR O PROJETO
+================================================================================
+
+  * Adicionar uma cota nova:
+      Em simulator.py, acrescente um dicionário em DEFAULT_ASSETS com um "id"
+      único e ajuste price/volatility/trend/up_chance/down_chance/risk. Faça
+      um reset (ou apague data.json) para a nova cota aparecer.
+
+  * Mudar o saldo inicial:
+      Altere INITIAL_BALANCE em simulator.py.
+
+  * Criar novos eventos:
+      Edite _roll_global_event() (eventos globais) ou _step_asset() (eventos
+      por cota) em simulator.py.
+
+  * Ajustar a frequência/intensidade da aleatoriedade:
+      Mexa nas probabilidades (0.012, etc.) e nos intervalos uniform(...) em
+      simulator.py.
+
+  * Novo tipo de gráfico:
+      ChartLib.draw aceita várias séries; basta montar o array de séries em
+      renderChart() (app.js) e, se quiser, adicionar uma aba no index.html.
+
+  * Novos sons:
+      Acrescente uma função em FX (sounds.js) e chame Sounds.play("nome").
+
+  * Mudar o visual:
+      Ajuste as variáveis de cor em :root (style.css).
+
+
+================================================================================
+  17. SOLUÇÃO DE PROBLEMAS (FAQ)
+================================================================================
+
+  P: Não toca nenhum som.
+  R: Clique em qualquer lugar da página primeiro (regra do navegador). Confira
+     se o botão está em 🔊 (e não 🔇). Alguns navegadores antigos não suportam
+     a Web Audio API — nesse caso os sons são ignorados sem quebrar o site.
+
+  P: Quero zerar tudo.
+  R: Clique em "Reset" na tela, OU pare o servidor e apague o arquivo data.json.
+
+  P: O preço de uma cota chegou perto de zero.
+  R: É esperado em ativos de alto risco (cripto/startup). Há um piso de R$ 0,50;
+     o preço nunca chega exatamente a zero.
+
+  P: O servidor não inicia ("ModuleNotFoundError: No module named 'flask'").
+  R: Ative a venv e instale as dependências:
+        Windows: .\venv\Scripts\Activate.ps1
+        depois:  pip install -r requirements.txt
+
+  P: A porta 5000 está ocupada.
+  R: Em app.py, mude port=5000 para outra porta (ex.: 5001) e acesse
+     http://127.0.0.1:5001.
+
+  P: Editei o Python mas nada mudou.
+  R: Com debug=True o servidor recarrega sozinho ao salvar. Se não recarregar,
+     pare (Ctrl+C) e rode "python app.py" de novo. Editou uma cota? Faça reset.
+
+================================================================================
+  Fim. Bons investimentos fictícios! 📈
+================================================================================

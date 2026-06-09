@@ -1,0 +1,227 @@
+/* =========================================================================
+   style.css — Tema escuro, moderno, estilo painel de trading (fictício)
+   Sem frameworks. Layout responsivo com CSS Grid + Flexbox.
+   ========================================================================= */
+
+:root {
+  --bg: #0b0e14;
+  --bg-soft: #121722;
+  --card: #161c2a;
+  --card-2: #1c2434;
+  --border: #243049;
+  --text: #e7ecf5;
+  --muted: #8a96ab;
+  --accent: #4f8cff;
+  --accent-2: #7c5cff;
+  --green: #2ec27e;
+  --red: #ff5470;
+  --yellow: #ffce5c;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  background: radial-gradient(1200px 600px at 80% -10%, #15203a 0%, var(--bg) 55%);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 30px;
+}
+
+/* ----------------------------- Cabeçalho ----------------------------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 24px;
+  background: rgba(13, 18, 28, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { font-size: 30px; }
+.brand h1 { font-size: 22px; letter-spacing: 0.5px; }
+.brand small { color: var(--muted); font-size: 11px; }
+
+.topstats { display: flex; gap: 26px; margin-left: auto; flex-wrap: wrap; }
+.stat { display: flex; flex-direction: column; }
+.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-value { font-size: 18px; font-weight: 700; }
+
+.top-actions { display: flex; gap: 8px; }
+
+/* ----------------------------- Botões ----------------------------- */
+button { cursor: pointer; font-family: inherit; border: none; border-radius: 10px; transition: transform .08s ease, filter .15s ease, background .15s; }
+button:active { transform: scale(0.96); }
+
+.ghost-btn { background: var(--card-2); color: var(--text); border: 1px solid var(--border); padding: 8px 14px; font-size: 14px; }
+.ghost-btn:hover { filter: brightness(1.2); }
+.danger-btn { background: var(--red); color: #fff; padding: 8px 16px; font-weight: 600; }
+.danger-btn:hover { filter: brightness(1.1); }
+
+/* ----------------------------- Banner de evento ----------------------------- */
+.event-banner {
+  margin: 12px 24px 0;
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  text-align: center;
+  animation: slideDown .4s ease;
+}
+.event-banner.good { background: rgba(46,194,126,.15); border: 1px solid var(--green); color: var(--green); }
+.event-banner.bad  { background: rgba(255,84,112,.15); border: 1px solid var(--red); color: var(--red); }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ----------------------------- Barra de tempo ----------------------------- */
+.timebar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 16px 24px; padding: 12px 18px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.timebar-title { font-weight: 700; color: var(--muted); }
+.time-btn { background: var(--card-2); color: var(--text); border: 1px solid var(--border); padding: 9px 16px; font-size: 14px; font-weight: 600; }
+.time-btn:hover { background: var(--accent); border-color: var(--accent); }
+.time-btn.auto.active { background: var(--green); border-color: var(--green); color: #04150d; }
+.divider { width: 1px; height: 26px; background: var(--border); }
+.speed { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.speed input[type=range] { accent-color: var(--accent); }
+
+/* ----------------------------- Grid principal ----------------------------- */
+.grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1.4fr 1.1fr;
+  gap: 16px; padding: 0 24px;
+}
+.grid-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px 0; }
+
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+}
+.card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+.card-head h2 { font-size: 16px; }
+.card-head small { color: var(--muted); font-size: 11px; }
+
+/* ----------------------------- Lista de mercado ----------------------------- */
+.market-list { display: flex; flex-direction: column; gap: 10px; }
+.asset {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 10px;
+  padding: 12px 14px; border-radius: 12px; cursor: pointer;
+  background: var(--card-2); border: 1px solid var(--border);
+  transition: transform .1s ease, border-color .15s;
+  position: relative;
+}
+.asset:hover { transform: translateY(-2px); border-color: var(--accent); }
+.asset .a-name { font-weight: 700; font-size: 15px; }
+.asset .a-price { font-weight: 700; font-size: 15px; text-align: right; }
+.asset .a-spark { grid-column: 1 / -1; height: 28px; margin-top: 2px; }
+.asset .a-change { font-size: 12px; font-weight: 600; }
+.asset .a-meta { font-size: 11px; color: var(--muted); text-align: right; }
+
+.risk-badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 700; }
+.risk-Baixo { background: rgba(46,194,126,.18); color: var(--green); }
+.risk-Médio { background: rgba(255,206,92,.18); color: var(--yellow); }
+.risk-Alto  { background: rgba(255,84,112,.18); color: var(--red); }
+
+.up { color: var(--green); }
+.down { color: var(--red); }
+
+/* Tooltip explicando o investimento */
+.asset[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute; left: 14px; bottom: calc(100% + 6px);
+  width: max-content; max-width: 240px;
+  background: #04070d; color: var(--text); border: 1px solid var(--border);
+  padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.4;
+  z-index: 30; box-shadow: var(--shadow); pointer-events: none;
+}
+
+/* ----------------------------- Gráfico ----------------------------- */
+.charts canvas { width: 100%; display: block; background: var(--bg-soft); border-radius: 10px; }
+.chart-tabs { display: flex; gap: 6px; }
+.tab { background: var(--card-2); color: var(--muted); border: 1px solid var(--border); padding: 5px 12px; font-size: 12px; }
+.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 12px; }
+.legend span { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.legend i { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+
+/* ----------------------------- Carteira ----------------------------- */
+.portfolio-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; min-height: 30px; }
+.empty { color: var(--muted); font-size: 13px; text-align: center; padding: 14px 0; }
+.pos {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 8px;
+  padding: 10px 12px; background: var(--card-2); border: 1px solid var(--border); border-radius: 10px;
+}
+.pos .p-name { font-weight: 700; }
+.pos .p-val { text-align: right; font-weight: 700; }
+.pos .p-sub { font-size: 11px; color: var(--muted); }
+.pos .p-profit { text-align: right; font-size: 12px; font-weight: 600; }
+
+/* ----------------------------- Estatísticas ----------------------------- */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.stat-box { background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+.stat-box span { font-size: 11px; color: var(--muted); display: block; }
+.stat-box strong { font-size: 15px; }
+
+/* ----------------------------- Ranking ----------------------------- */
+.ranking-list { display: flex; flex-direction: column; gap: 6px; }
+.rank-row { display: grid; grid-template-columns: 22px 1fr auto auto; gap: 8px; align-items: center; padding: 7px 10px; background: var(--card-2); border: 1px solid var(--border); border-radius: 9px; font-size: 13px; }
+.rank-row .pos-num { color: var(--muted); font-weight: 700; }
+
+/* ----------------------------- Históricos ----------------------------- */
+.tx-list, .events-list { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
+.tx { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; background: var(--card-2); border: 1px solid var(--border); border-radius: 9px; font-size: 13px; }
+.tx .tag { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 700; }
+.tag.compra { background: rgba(79,140,255,.2); color: var(--accent); }
+.tag.venda { background: rgba(255,206,92,.2); color: var(--yellow); }
+.tx .tx-sub { color: var(--muted); font-size: 11px; }
+.ev { padding: 8px 12px; border-radius: 9px; font-size: 13px; border: 1px solid var(--border); }
+.ev.good { background: rgba(46,194,126,.1); color: var(--green); }
+.ev.bad  { background: rgba(255,84,112,.1); color: var(--red); }
+.ev small { color: var(--muted); }
+
+/* ----------------------------- Modal ----------------------------- */
+.modal { position: fixed; inset: 0; background: rgba(3,6,12,.7); display: flex; align-items: center; justify-content: center; z-index: 50; animation: fade .2s ease; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.modal-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; width: min(440px, 92vw); box-shadow: var(--shadow); position: relative; }
+.modal-close { position: absolute; top: 12px; right: 12px; background: transparent; color: var(--muted); font-size: 18px; }
+.modal-box h3 { font-size: 20px; margin-bottom: 4px; }
+.m-desc { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+.m-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.m-info div { background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+.m-info span { font-size: 11px; color: var(--muted); display: block; }
+.m-info strong { font-size: 15px; }
+.qty-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.qty-label input { width: 100%; margin-top: 4px; padding: 10px; border-radius: 10px; background: var(--bg-soft); border: 1px solid var(--border); color: var(--text); font-size: 15px; }
+.m-cost { margin: 12px 0; font-size: 14px; color: var(--muted); }
+.m-actions { display: flex; gap: 8px; }
+.buy-btn { background: var(--green); color: #04150d; font-weight: 700; padding: 11px 16px; flex: 1; }
+.sell-btn { background: var(--red); color: #fff; font-weight: 700; padding: 11px 16px; flex: 1; }
+.m-error { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 16px; }
+
+/* ----------------------------- Animações de valor ----------------------------- */
+.flash-up { animation: flashUp .6s ease; }
+.flash-down { animation: flashDown .6s ease; }
+@keyframes flashUp { 0% { background: rgba(46,194,126,.35); } 100% { background: transparent; } }
+@keyframes flashDown { 0% { background: rgba(255,84,112,.35); } 100% { background: transparent; } }
+
+.footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 24px; }
+.hidden { display: none !important; }
+
+/* ----------------------------- Responsivo ----------------------------- */
+@media (max-width: 1080px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+  .charts { grid-column: 1 / -1; order: -1; }
+}
+@media (max-width: 720px) {
+  .grid, .grid-bottom { grid-template-columns: 1fr; }
+  .topstats { gap: 16px; width: 100%; order: 3; }
+  .stat-value { font-size: 16px; }
+}

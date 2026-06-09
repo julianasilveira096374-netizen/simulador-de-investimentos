@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InvestSim — Simulador de Investimentos Fictício</title>
+  <!-- CSS próprio (sem frameworks pesados) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+
+  <!-- ===================== CABEÇALHO / BARRA SUPERIOR ===================== -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">📈</span>
+      <div>
+        <h1>InvestSim</h1>
+        <small>Simulador 100% fictício — nada aqui é real</small>
+      </div>
+    </div>
+
+    <!-- Resumo financeiro rápido -->
+    <div class="topstats">
+      <div class="stat">
+        <span class="stat-label">Patrimônio</span>
+        <strong id="t-networth" class="stat-value">R$ 0,00</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Saldo (caixa)</span>
+        <strong id="t-balance" class="stat-value">R$ 0,00</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Lucro/Prejuízo</span>
+        <strong id="t-profit" class="stat-value">R$ 0,00</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Dia</span>
+        <strong id="t-day" class="stat-value">0</strong>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button id="btn-sound" class="ghost-btn" title="Ligar/desligar sons">🔊</button>
+      <button id="btn-reset" class="danger-btn" title="Reiniciar simulação">Reset</button>
+    </div>
+  </header>
+
+  <!-- Faixa de evento econômico (aparece em crises/booms) -->
+  <div id="event-banner" class="event-banner hidden"></div>
+
+  <!-- ===================== CONTROLE DE TEMPO ===================== -->
+  <section class="timebar">
+    <span class="timebar-title">⏱️ Tempo</span>
+    <button class="time-btn" data-days="1">+1 Dia</button>
+    <button class="time-btn" data-days="7">+1 Semana</button>
+    <button class="time-btn" data-days="30">+1 Mês</button>
+
+    <div class="divider"></div>
+
+    <button id="btn-auto" class="time-btn auto">▶ Auto</button>
+    <label class="speed">
+      Velocidade
+      <input id="speed" type="range" min="1" max="10" value="5" />
+      <span id="speed-val">5</span>
+    </label>
+  </section>
+
+  <!-- ===================== CORPO PRINCIPAL ===================== -->
+  <main class="grid">
+
+    <!-- Coluna esquerda: mercado de cotas -->
+    <section class="card market">
+      <div class="card-head">
+        <h2>Mercado</h2>
+        <small>Clique em uma cota para negociar</small>
+      </div>
+      <div id="market-list" class="market-list"><!-- cotas via JS --></div>
+    </section>
+
+    <!-- Coluna central: gráficos -->
+    <section class="card charts">
+      <div class="card-head">
+        <h2>Evolução</h2>
+        <div class="chart-tabs">
+          <button class="tab active" data-chart="networth">Patrimônio</button>
+          <button class="tab" data-chart="assets">Cotas</button>
+        </div>
+      </div>
+      <canvas id="chart" height="260"></canvas>
+      <div id="chart-legend" class="legend"></div>
+    </section>
+
+    <!-- Coluna direita: carteira + estatísticas -->
+    <section class="card portfolio">
+      <div class="card-head"><h2>Minha Carteira</h2></div>
+      <div id="portfolio-list" class="portfolio-list"></div>
+
+      <div class="card-head"><h2>Estatísticas</h2></div>
+      <div id="stats" class="stats-grid"></div>
+
+      <div class="card-head"><h2>🏆 Ranking de Cotas</h2></div>
+      <div id="ranking" class="ranking-list"></div>
+    </section>
+  </main>
+
+  <!-- ===================== HISTÓRICOS ===================== -->
+  <section class="grid-bottom">
+    <section class="card">
+      <div class="card-head"><h2>📜 Histórico de Transações</h2></div>
+      <div id="tx-list" class="tx-list"></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>🌍 Eventos do Mercado</h2></div>
+      <div id="events-list" class="events-list"></div>
+    </section>
+  </section>
+
+  <footer class="footer">
+    InvestSim — projeto educacional e fictício. Nenhum valor representa o mercado real.
+  </footer>
+
+  <!-- ===================== MODAL DE NEGOCIAÇÃO ===================== -->
+  <div id="trade-modal" class="modal hidden">
+    <div class="modal-box">
+      <button id="modal-close" class="modal-close">✕</button>
+      <h3 id="m-name">Cota</h3>
+      <p id="m-desc" class="m-desc"></p>
+
+      <div class="m-info">
+        <div><span>Preço atual</span><strong id="m-price">R$ 0,00</strong></div>
+        <div><span>Risco</span><strong id="m-risk">-</strong></div>
+        <div><span>Você possui</span><strong id="m-shares">0</strong></div>
+        <div><span>Preço médio</span><strong id="m-avg">R$ 0,00</strong></div>
+      </div>
+
+      <label class="qty-label">
+        Quantidade de cotas
+        <input id="m-qty" type="number" min="0" step="1" value="10" />
+      </label>
+      <div class="m-cost">Custo estimado: <strong id="m-cost">R$ 0,00</strong></div>
+
+      <div class="m-actions">
+        <button id="m-buy" class="buy-btn">Comprar</button>
+        <button id="m-sell" class="sell-btn">Vender</button>
+        <button id="m-sellall" class="ghost-btn">Vender tudo</button>
+      </div>
+      <p id="m-error" class="m-error"></p>
+    </div>
+  </div>
+
+  <!-- JS: gráficos + sons + lógica do app (ordem importa) -->
+  <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/sounds.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
