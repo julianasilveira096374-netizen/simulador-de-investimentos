@@ -4,7 +4,7 @@
 
 Este arquivo explica, em detalhes e em português, COMO o simulador foi
 construído e COMO cada parte funciona por dentro. É um guia para você entender,
-manter e expandir o projeto. Tudo aqui é fictício e educacional.
+manter e expandir o projeto.
 
 Índice:
   1.  Visão geral da arquitetura
@@ -177,7 +177,7 @@ Constantes no topo:
         down_chance -> probabilidade de receber um empurrão para baixo
         risk        -> rótulo de risco para a interface (Baixo/Médio/Alto)
 
-  * INITIAL_BALANCE -> saldo fictício inicial (R$ 10.000).
+  * INITIAL_BALANCE -> saldo inicial (R$ 10.000).
 
 Atributos de estado (criados em reset()):
 
@@ -507,7 +507,7 @@ Isso mantém o projeto leve e sem downloads.
 
   Cota / Ativo     : um investimento negociável (ex.: TechVerso, CriptoLuna).
   Carteira (holdings): o conjunto de cotas que VOCÊ possui.
-  Saldo / Caixa    : dinheiro fictício disponível para comprar.
+  Saldo / Caixa    : dinheiro disponível para comprar.
   Patrimônio (net worth): caixa + valor de mercado de todas as suas cotas.
   Preço médio      : média ponderada do que você pagou por uma cota.
   Lucro/Prejuízo   : valor de mercado atual - valor investido.
@@ -579,5 +579,5 @@ Isso mantém o projeto leve e sem downloads.
      pare (Ctrl+C) e rode "python app.py" de novo. Editou uma cota? Faça reset.
 
 ================================================================================
-  Fim. Bons investimentos fictícios! 📈
+  Fim. Bons investimentos! 📈
 ================================================================================

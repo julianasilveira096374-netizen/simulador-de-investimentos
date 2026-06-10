@@ -1,7 +1,7 @@
 """
 app.py
 ======
-Servidor Flask do Simulador de Investimentos Fictício.
+Servidor Flask do InvestSim — Simulador de Investimentos.
 
 Responsabilidades:
   - servir a página principal (HTML/CSS/JS)

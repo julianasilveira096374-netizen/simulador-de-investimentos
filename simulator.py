@@ -1,7 +1,7 @@
 """
 simulator.py
 ============
-Núcleo (engine) do simulador de investimentos fictício.
+Núcleo (engine) do simulador de investimentos InvestSim.
 
 Aqui fica TODA a lógica de negócio:
   - criação das cotas/investimentos
@@ -12,8 +12,6 @@ Aqui fica TODA a lógica de negócio:
 
 O Flask (app.py) apenas usa esta classe e expõe rotas JSON.
 Manter a lógica separada deixa o código fácil de expandir e testar.
-
-Todos os valores são FICTÍCIOS. Nada aqui representa o mercado real.
 """
 
 import random
@@ -34,7 +32,7 @@ import time
 DEFAULT_ASSETS = [
     {
         "id": "tesouro",
-        "name": "Tesouro Fictício",
+        "name": "Tesouro Direto",
         "desc": "Investimento seguro. Sobe devagar e quase nunca cai forte.",
         "price": 100.0,
         "volatility": 0.010,
@@ -79,7 +77,7 @@ DEFAULT_ASSETS = [
     {
         "id": "cripto",
         "name": "CriptoLuna",
-        "desc": "Cripto fictícia. Pode explodir... ou quebrar. Altíssimo risco.",
+        "desc": "Criptomoeda de alta volatilidade. Pode explodir... ou quebrar. Altíssimo risco.",
         "price": 30.0,
         "volatility": 0.14,
         "trend": 0.0008,
@@ -100,7 +98,7 @@ DEFAULT_ASSETS = [
     },
 ]
 
-INITIAL_BALANCE = 10000.0  # saldo fictício inicial do usuário
+INITIAL_BALANCE = 10000.0  # saldo inicial do usuário
 
 
 class Simulator:

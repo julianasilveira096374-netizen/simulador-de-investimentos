@@ -1,19 +1,17 @@
-# 📈 InvestSim — Simulador de Investimentos Fictício
+# 📈 InvestSim — Simulador de Investimentos
 
-Um mini "mercado financeiro" **100% fictício, interativo e visual**, feito com
+Uma plataforma de simulação de mercado financeiro **interativa e visual**, feita com
 **Python + Flask** no backend e **HTML, CSS e JavaScript puro** no frontend
-(sem frameworks pesados). Compre cotas imaginárias, avance o tempo e acompanhe
-lucros, prejuízos e eventos econômicos aleatórios em um painel estilo plataforma
+(sem frameworks pesados). Compre cotas, avance o tempo e acompanhe
+lucros, prejuízos e eventos econômicos em um painel estilo plataforma
 de trading.
-
-> ⚠️ Tudo aqui é fictício e educacional. Nenhum valor representa o mercado real.
 
 ---
 
 ## ✨ Funcionalidades
 
 - **6 cotas** com perfis de risco diferentes (Baixo / Médio / Alto)
-- **Motor de aleatoriedade inteligente**: tendência, volatilidade, viés de alta/queda
+- **Motor de mercado inteligente**: tendência, volatilidade, viés de alta/queda
 - **Eventos econômicos raros**: 📉 crise, 🚀 boom, altas repentinas e quedas bruscas
 - **Controle de tempo**: avançar +1 dia, +1 semana, +1 mês, **modo automático** com
   **velocidade ajustável** e **pausa**
@@ -105,4 +103,4 @@ http://127.0.0.1:5000
 - **Saldo inicial**: mude `INITIAL_BALANCE` em `simulator.py`.
 - **Novos gráficos**: a `ChartLib` em `static/js/chart.js` aceita várias séries.
 
-O código é todo comentado em português para facilitar o aprendizado. 🚀
+O código é todo comentado em português para facilitar a manutenção. 🚀
